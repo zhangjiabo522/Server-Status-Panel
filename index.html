@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>服务器健康看板</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+        :root {
+            --primary: #4F46E5;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --background-light: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            --background-dark: #1E293B;
+            --card-light: white;
+            --card-dark: #334155;
+            --text-light: #1e293b;
+            --text-dark: #E2E8F0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--background-light);
+            color: var(--text-light);
+            min-height: 100vh;
+            margin: 0;
+            padding: 2rem;
+            display: grid;
+            place-items: center;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .dashboard {
+            width: 100%;
+            max-width: 1000px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* 每行显示3个 */
+            grid-template-rows: repeat(2, auto); /* 显示两行 */
+            gap: 1.5rem;
+        }
+
+        .status-card {
+            padding: 1.5rem;
+            border-radius: 1rem;
+            background: var(--card-light);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            color: var(--text-light);
+        }
+
+        .metric-header {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            margin-bottom: 1rem;
+        }
+
+        .metric-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: grid;
+            place-items: center;
+            background: rgba(79, 70, 229, 0.1);
+            transition: background 0.3s;
+        }
+
+        .metric-title {
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .metric-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            text-align: center;
+            position: relative;
+        }
+
+        .loading {
+            color: #94a3b8 !important;
+        }
+
+        .theme-toggle {
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 1.5rem;
+            transition: color 0.3s;
+        }
+
+        /* 黑暗模式 */
+        body.dark-mode {
+            background: var(--background-dark);
+            color: var(--text-dark);
+        }
+
+        body.dark-mode .dashboard {
+            background: rgba(51, 65, 85, 0.95);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        body.dark-mode .status-card {
+            background: var(--card-dark);
+            color: var(--text-dark);
+        }
+
+        body.dark-mode .metric-icon {
+            background: rgba(79, 70, 229, 0.3);
+        }
+
+        /* 响应式优化 */
+        @media (max-width: 640px) {
+            .status-grid {
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* 小屏幕设备自动调整 */
+            }
+            body {
+                padding: 1rem;
+            }
+            .dashboard {
+                border-radius: 1rem;
+                padding: 1.5rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <h1>
+            <span>服务器健康监测</span>
+            <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+        </h1>
+        <div class="status-grid">
+            <div class="status-card">
+                <div class="metric-header">
+                    <div class="metric-icon"><i class="fas fa-desktop"></i></div>
+                    <h3 class="metric-title">CPU 使用率</h3>
+                </div>
+                <div id="cpuUsage" class="metric-value loading">0%</div>
+            </div>
+            <div class="status-card">
+                <div class="metric-header">
+                    <div class="metric-icon"><i class="fas fa-memory"></i></div>
+                    <h3 class="metric-title">内存使用率</h3>
+                </div>
+                <div id="memoryUsage" class="metric-value loading">0%</div>
+            </div>
+            <div class="status-card">
+                <div class="metric-header">
+                    <div class="metric-icon"><i class="fas fa-hdd"></i></div>
+                    <h3 class="metric-title">磁盘使用率</h3>
+                </div>
+                <div id="diskUsage" class="metric-value loading">0%</div>
+            </div>
+            <div class="status-card">
+                <div class="metric-header">
+                    <div class="metric-icon"><i class="fas fa-clock"></i></div>
+                    <h3 class="metric-title">服务器运行时间</h3>
+                </div>
+                <div id="serverUptime" class="metric-value loading">0%</div>
+            </div>
+            <div class="status-card">
+                <div class="metric-header">
+                    <div class="metric-icon"><i class="fas fa-network-wired"></i></div>
+                    <h3 class="metric-title">网络流量</h3>
+                </div>
+                <div id="networkTraffic" class="metric-value loading">0KB/s</div>
+            </div>
+            <div class="status-card">
+                <div class="metric-header">
+                    <div class="metric-icon"><i class="fas fa-cog"></i></div>
+                    <h3 class="metric-title">服务器负载</h3>
+                </div>
+                <div id="loadAverage" class="metric-value loading">0.00</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateStatus(id, value, unit = '') {
+            const element = document.getElementById(id);
+            const formattedValue = parseFloat(value).toFixed(2);
+            element.textContent = formattedValue + unit;
+            element.classList.remove('loading');
+
+            const card = element.closest('.status-card');
+            const valueNum = parseFloat(formattedValue);
+
+            if (valueNum >= 90) {
+                card.style.background = "linear-gradient(45deg, #fff0f0, #fff)";
+            } else if (valueNum >= 80) {
+                card.style.background = "linear-gradient(45deg, #fff7e6, #fff)";
+            } else {
+                card.style.background = "white";
+            }
+        }
+
+        function fetchServerStatus() {
+            fetch('http://sc.zjb522.cn/111/server_status.php')  // 更新为实际的后端路径
+                .then(response => response.json())
+                .then(data => {
+                    // CPU 使用率转换为百分比
+                    updateStatus('cpuUsage', data.cpu * 100, '%');
+
+                    // 内存使用率
+                    updateStatus('memoryUsage', data.memory, '%');
+
+                    // 磁盘使用率
+                    updateStatus('diskUsage', data.disk, '%');
+
+                    // 服务器运行时间（将秒数转换为小时:分钟:秒）
+                    updateStatus('serverUptime', data.uptime, '秒');
+
+                    // 网络流量（处理 0 的情况）
+                    updateStatus('networkTraffic', data.network === 0 ? '0' : data.network, 'KB/s');
+
+                    // 服务器负载
+                    updateStatus('loadAverage', data.loadAverage, '');
+                })
+                .catch(() => {
+                    ['cpuUsage', 'memoryUsage', 'diskUsage', 'serverUptime', 'networkTraffic', 'loadAverage'].forEach(id => {
+                        const element = document.getElementById(id);
+                        element.textContent = 'ERR';
+                        element.style.color = 'red';
+                    });
+                });
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', body.classList.contains('dark-mode') ? 'dark' : 'light');
+            document.querySelector('.theme-toggle').textContent = body.classList.contains('dark-mode') ? '☀️' : '🌙';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 检查本地存储中的主题设置
+            if (localStorage.getItem('theme') === 'dark') {
+                document.body.classList.add('dark-mode');
+                document.querySelector('.theme-toggle').textContent = '☀️';
+            }
+
+            // 初始加载服务器状态
+            fetchServerStatus();
+
+            // 每5秒刷新一次服务器状态
+            setInterval(fetchServerStatus, 500);
+        });
+    </script>
+</body>
+</html>
+
